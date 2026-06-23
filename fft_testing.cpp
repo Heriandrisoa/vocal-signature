@@ -19,16 +19,34 @@ double melToHz(double mel)
            (pow(10.0, mel / 2595.0) - 1.0);
 }
 
-int main()
+double cosineSimilarity(
+    const vector<float>& a,
+    const vector<float>& b)
 {
-    SF_INFO sinfo;
+    double dot = 0;
+    double na = 0;
+    double nb = 0;
+
+    for(size_t i = 0; i < a.size(); i++)
+    {
+        dot += a[i] * b[i];
+        na += a[i] * a[i];
+        nb += b[i] * b[i];
+    }
+
+    return dot /
+           (sqrt(na) * sqrt(nb));
+}
+
+vector<float> getEmbeding(string path) {
+SF_INFO sinfo;
     SNDFILE* file =
-        sf_open("data/voice1.wav", SFM_READ, &sinfo);
+        sf_open(path.c_str(), SFM_READ, &sinfo);
 
     if (!file)
     {
         cerr << "cannot open file\n";
-        return 1;
+        return vector<float>();
     }
     const int n_mels = 80;
     vector<float> audio(sinfo.frames);
@@ -272,12 +290,18 @@ int main()
     float* embedding =
     outputs[0]
         .GetTensorMutableData<float>();
-
+    vector<float> emb(256);
     for (int i = 0; i < 256; i++)
     {
-        cout
-            << embedding[i]
-            << " ";
+        emb[i] = embedding[i];
     }
-    return 0;
+    return emb;
+}
+
+int main()
+{
+    vector<float> a = getEmbeding("data/voice2.wav");
+    vector<float> b = getEmbeding("data/voice1.wav");
+    cout << "cosine similariy :" << cosineSimilarity(a, b) << endl;
+ 
 }
