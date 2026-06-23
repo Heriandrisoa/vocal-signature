@@ -6,6 +6,18 @@
 
 using namespace std;
 
+double hzToMel(double hz)
+{
+    return 2595.0 *
+           log10(1.0 + hz / 700.0);
+}
+
+double melToHz(double mel)
+{
+    return 700.0 *
+           (pow(10.0, mel / 2595.0) - 1.0);
+}
+
 int main()
 {
     SF_INFO sinfo;
@@ -17,7 +29,7 @@ int main()
         cerr << "cannot open file\n";
         return 1;
     }
-
+    const int n_mels = 80;
     vector<float> audio(sinfo.frames);
 
     sf_read_float(
@@ -42,15 +54,18 @@ int main()
             out,
             FFTW_ESTIMATE
         );
-
+    
+    vector<float> features;
     cout << "Processing frames...\n";
 
+    // processing by frame
     for (
         size_t start = 0;
         start + frame_size <= audio.size();
         start += hop_size
     )
     {
+        // Hamming processing
         for (int i = 0; i < frame_size; i++)
         {
             double hamming =
@@ -66,38 +81,124 @@ int main()
         fftw_execute(plan);
 
         // 3. analyse spectre
-        double max_mag = 0;
-        int max_bin = 0;
+        vector<double> power(frame_size / 2 + 1);
 
         for (int k = 0; k < frame_size / 2 + 1; k++)
         {
             double re = out[k][0];
             double im = out[k][1];
 
-            double mag =
-                sqrt(re * re + im * im);
-
-            if (mag > max_mag)
-            {
-                max_mag = mag;
-                max_bin = k;
-            }
+            power[k] = re * re + im * im;
         }
 
-        double hz =
-            max_bin *
-            (double)sampleRate /
-            frame_size;
+        // Mel calcul
+        double melMin = hzToMel(0);
+        double melMax =
+            hzToMel(sampleRate / 2);
 
-        cout << "Frame start " << start
-             << " | dominant freq = "
-             << hz
-             << " Hz"
-             << " | mag = "
-             << max_mag
-             << endl;
+        vector<double> melPoints(n_mels + 2);
+
+        for (int i = 0; i < n_mels + 2; i++)
+        {
+            melPoints[i] =
+                melMin +
+                (melMax - melMin) *
+                i /
+                (n_mels + 1);
+        }
+
+        // convert to Hz
+        vector<double> hzPoints(n_mels + 2);
+
+        for (int i = 0; i < n_mels + 2; i++)
+        {
+            hzPoints[i] =
+                melToHz(melPoints[i]);
+        }
+
+        // convert to FFT
+        vector<int> bins(n_mels + 2);
+
+        for (int i = 0; i < n_mels + 2; i++)
+        {
+            bins[i] =
+                floor(
+                    (frame_size + 1)
+                    * hzPoints[i]
+                    / sampleRate
+                );
+        }
+
+        // Mel extract energy
+        vector<float> melEnergies(n_mels, 0);
+
+                for (int m = 1; m <= n_mels; m++)
+        {
+            int left   = bins[m - 1];
+            int center = bins[m];
+            int right  = bins[m + 1];
+
+            double energy = 0.0;
+
+            for (int k = left; k < center; k++)
+            {
+                double weight =
+                    (double)(k - left) /
+                    (center - left);
+
+                energy +=
+                    power[k] * weight;
+            }
+
+            for (int k = center; k < right; k++)
+            {
+                double weight =
+                    (double)(right - k) /
+                    (right - center);
+
+                energy +=
+                    power[k] * weight;
+            }
+
+            melEnergies[m - 1] = energy;
+        }
+
+        // loging mel energy
+        for (auto& v : melEnergies)
+        {
+            v = log(v + 1e-9);
+        }
+        
+        features.insert(
+            features.end(),
+            melEnergies.begin(),
+            melEnergies.end()
+        );
+ 
     }
 
+
+    // normalisation 
+    double mean = 0;
+
+    for (auto v : features)
+    {
+        mean += v;
+    }
+
+    mean /= features.size();
+    double stddev = 0;
+
+    for (auto v : features)
+    {
+        stddev += (v - mean) * (v - mean);
+    }
+
+    stddev = sqrt(stddev / features.size());
+    for (auto& v : features)
+    {
+        v = (v - mean) / (stddev + 1e-9);
+    }
     fftw_destroy_plan(plan);
 
     return 0;
