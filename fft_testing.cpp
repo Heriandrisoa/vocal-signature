@@ -301,7 +301,7 @@ SF_INFO sinfo;
 int main()
 {
     vector<float> a = getEmbeding("data/voice2.wav");
-    vector<float> b = getEmbeding("data/voice1.wav");
+    vector<float> b = getEmbeding("data/imitation.wav");
     cout << "cosine similariy :" << cosineSimilarity(a, b) << endl;
- 
+    // marge is upper than 99%
 }
