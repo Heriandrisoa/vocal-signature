@@ -3,6 +3,7 @@
 #include <iostream>
 #include <vector>
 #include <cmath>
+#include <onnxruntime/onnxruntime_cxx_api.h>
 
 using namespace std;
 
@@ -31,7 +32,12 @@ int main()
     }
     const int n_mels = 80;
     vector<float> audio(sinfo.frames);
-
+    vector<int64_t> shape =
+    {
+        1,
+        300,
+        80
+    };
     sf_read_float(
         file,
         audio.data(),
@@ -201,5 +207,77 @@ int main()
     }
     fftw_destroy_plan(plan);
 
+    // normalizing data
+    if (features.size() > 300* 80)
+    {
+        cout << "audio trop long, decoupage" << endl;
+        features.resize(300*80);
+    }
+    else if (features.size() < 300*80)
+    {
+        cout << "audio trop court, completion " << endl;
+        features.resize(300*80, 0.0f);
+    }
+    // setting up onnx 
+    Ort::Env env(
+        ORT_LOGGING_LEVEL_WARNING,
+        "speaker"
+    );
+
+    Ort::SessionOptions opts;
+
+    Ort::Session session(
+        env,
+        "model.onnx",
+        opts
+    );
+
+    Ort::MemoryInfo mem =
+    Ort::MemoryInfo::CreateCpu(
+        OrtArenaAllocator,
+        OrtMemTypeDefault
+    );
+
+
+    Ort::Value inputTensor =
+    Ort::Value::CreateTensor<float>(
+        mem,
+        features.data(),
+        features.size(),
+        shape.data(),
+        shape.size()
+    );
+
+    // infering
+    const char* inputNames[] =
+    {
+        "features"
+    };
+
+    const char* outputNames[] =
+    {
+        "embedding"
+    };
+
+    auto outputs =
+    session.Run(
+        Ort::RunOptions{nullptr},
+        inputNames,
+        &inputTensor,
+        1,
+        outputNames,
+        1
+    );
+
+    float* embedding =
+    outputs[0]
+        .GetTensorMutableData<float>();
+
+    for (int i = 0; i < 256; i++)
+    {
+        cout
+            << embedding[i]
+            << " ";
+    }
     return 0;
 }
