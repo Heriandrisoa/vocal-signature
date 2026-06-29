@@ -38,6 +38,21 @@ double cosineSimilarity(
            (sqrt(na) * sqrt(nb));
 }
 
+double euclideanDistance(
+    const std::vector<float>& a,
+    const std::vector<float>& b)
+{
+    double sum = 0.0;
+
+    for(size_t i = 0; i < a.size(); i++)
+    {
+        double diff = a[i] - b[i];
+        sum += diff * diff;
+    }
+
+    return std::sqrt(sum);
+}
+
 vector<float> getEmbeding(string path) {
 SF_INFO sinfo;
     SNDFILE* file =
@@ -64,8 +79,8 @@ SF_INFO sinfo;
 
     sf_close(file);
 
-    const int frame_size = 1024;
-    const int hop_size   = 512;
+    constexpr int frame_size = 400;
+    constexpr int hop_size   = 160;
 
     int sampleRate = sinfo.samplerate;
 
@@ -290,8 +305,16 @@ SF_INFO sinfo;
     float* embedding =
     outputs[0]
         .GetTensorMutableData<float>();
-    vector<float> emb(256);
-    for (int i = 0; i < 256; i++)
+
+    auto shapeOutput =
+        outputs[0]
+        .GetTensorTypeAndShapeInfo()
+        .GetShape();
+
+        for(auto s : shapeOutput)
+            cout << s << " ";
+    vector<float> emb(192);
+    for (int i = 0; i < 192; i++)
     {
         emb[i] = embedding[i];
     }
@@ -300,8 +323,10 @@ SF_INFO sinfo;
 
 int main()
 {
-    vector<float> a = getEmbeding("data/voice2.wav");
-    vector<float> b = getEmbeding("data/imitation.wav");
+    vector<float> a = getEmbeding("data/mahenina.wav");
+    vector<float> b = getEmbeding("data/voice1.wav");
     cout << "cosine similariy :" << cosineSimilarity(a, b) << endl;
+    cout << "Euclidian distance :" << euclideanDistance(a, b) << endl;
+
     // marge is upper than 99%
 }
