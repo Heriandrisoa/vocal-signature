@@ -1,0 +1,3 @@
+/home/kukuna/korontana/projet/etude/S5/dev/vocal-signature/build/CMakeFiles/example-app.dir
+/home/kukuna/korontana/projet/etude/S5/dev/vocal-signature/build/CMakeFiles/edit_cache.dir
+/home/kukuna/korontana/projet/etude/S5/dev/vocal-signature/build/CMakeFiles/rebuild_cache.dir

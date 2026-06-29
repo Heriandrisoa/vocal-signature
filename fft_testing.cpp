@@ -4,6 +4,7 @@
 #include <vector>
 #include <cmath>
 #include <onnxruntime/onnxruntime_cxx_api.h>
+#include <torch/torch.h>
 
 using namespace std;
 
@@ -107,13 +108,8 @@ SF_INFO sinfo;
         // Hamming processing
         for (int i = 0; i < frame_size; i++)
         {
-            double hamming =
-                0.54 -
-                0.46 *
-                cos(2.0 * M_PI * i / (frame_size - 1));
-
-            in[i] =
-                audio[start + i] * hamming;
+            double hamming = 0.54 - 0.46 * cos(2.0 * M_PI * i / (frame_size ));
+            in[i] = audio[start + i] * hamming;
         }
 
         // 2. FFT
@@ -127,7 +123,7 @@ SF_INFO sinfo;
             double re = out[k][0];
             double im = out[k][1];
 
-            power[k] = re * re + im * im;
+            power[k] = (re * re + im * im) / frame_size;
         }
 
         // Mel calcul
@@ -139,8 +135,7 @@ SF_INFO sinfo;
 
         for (int i = 0; i < n_mels + 2; i++)
         {
-            melPoints[i] =
-                melMin +
+            melPoints[i] = melMin +
                 (melMax - melMin) *
                 i /
                 (n_mels + 1);
@@ -221,9 +216,7 @@ SF_INFO sinfo;
     double mean = 0;
 
     for (auto v : features)
-    {
         mean += v;
-    }
 
     mean /= features.size();
     double stddev = 0;

@@ -33,9 +33,3 @@ emb2 = classifier.encode_batch(
     classifier.load_audio("data/salama.wav")
 )[0, 0].tolist()
 print(cosine_similarity(emb1, emb2))
-# print(emb1)
-
-# print("---------------------------------")
-# print("---------------------------------")
-# print("---------------------------------")
-# print(emb2)
